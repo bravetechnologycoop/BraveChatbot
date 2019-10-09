@@ -19,12 +19,15 @@ const app = express();
 const unrespondedSessionReminderTimeoutMillis = process.env.NODE_ENV === 'test' ? 1000 : 300000;
 const unrespondedSessionAlertTimeoutMillis = process.env.NODE_ENV === 'test' ? 2000 : 420000;
 
+
+
 //Set up Twilio
 const accountSid = getEnvVar('TWILIO_SID');
 const authToken = getEnvVar('TWILIO_TOKEN');
 
-const client = require('twilio')(accountSid, authToken);
 
+
+let twilioClient;
 const dashboardTemplate = fs.readFileSync(`${__dirname}/dashboard.mst`, 'utf-8')
 
 app.use(bodyParser.urlencoded({extended: true}));
@@ -122,7 +125,7 @@ async function sendButtonPressMessageForSession(session) {
 
 async function sendTwilioMessage(toPhoneNumber, fromPhoneNumber, message) {
     try {
-        await client.messages.create({from: fromPhoneNumber, body: message, to: toPhoneNumber})
+        await twilioClient.messages.create({from: fromPhoneNumber, body: message, to: toPhoneNumber})
                              .then(message => log(message.sid))
     }
     catch(err) {
@@ -163,7 +166,7 @@ async function sendStaffAlertForSession(sessionId) {
 
         let installation = await db.getInstallationWithInstallationId(session.installationId)
 
-        await client.messages
+        await twilioClient.messages
             .create({from: session.phoneNumber, body: 'There has been an unresponded request at unit ' + session.unit.toString(), to: installation.fall_back_phone_number})
             .then(message => log(message.sid))
     }
@@ -340,14 +343,16 @@ app.post('/message', jsonBodyParser, async (req, res) => {
 let server;
 
 if (process.env.NODE_ENV === 'test') { // local http server for testing
-	server = app.listen(8000);
+    server = app.listen(8000);
+    twilioClient = server.fakeTwilio;
 }
 else {
 	let httpsOptions = {
 	    key: fs.readFileSync(`/etc/letsencrypt/live/${getEnvVar('DOMAIN')}/privkey.pem`),
 	    cert: fs.readFileSync(`/etc/letsencrypt/live/${getEnvVar('DOMAIN')}/fullchain.pem`)
 	}
-	server = https.createServer(httpsOptions, app).listen(443)
+    server = https.createServer(httpsOptions, app).listen(443)
+    twilioClient = require('twilio')(accountSid, authToken);
 	log('brave server listening on port 443')
 }
 

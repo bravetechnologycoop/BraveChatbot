@@ -77,7 +77,23 @@ describe('Chatbot server', () => {
             await db.clearButtons()
             await db.clearInstallations()
             console.log('\n')
-	    });
+        });
+        
+        it('should send a fallback message if the an alert is unresponded to for longer than the threshold', async () => {
+            server.fakeTwilio = { 
+                messages:{create:function(param){
+                    return {};
+                }}
+            }
+        
+            let response = await chai.request(server).post('/').send(unit1FlicRequest_SingleClick);
+            expect(response).to.have.status(200);
+            
+            await new Promise(resolve => setTimeout(() => { resolve(); }, 3000));
+
+            
+            expect(true).to.equal(true);
+        })
 
 		it('should return 400 to a request with an empty body', async () => {
 			let response = await chai.request(server).post('/').send({});
@@ -246,5 +262,26 @@ describe('Chatbot server', () => {
             expect(sessions[0].unit).to.deep.equal('2')
             expect(sessions[0].numPresses).to.deep.equal(1)
 		});
-	});
+    });
+    
+    describe('Twilio mocking', () => {
+
+        it('should run a test', async () => {
+            server.fakeTwilio = { 
+                messages:{create:function(param){
+                    return {};
+                }}
+            }
+            expect(true).to.equal(true);
+        });
+        
+        it('should send a fallback message if the an alert is unresponded to for longer than the threshold', async () => {
+            server.fakeTwilio = { 
+                messages:{create:function(param){
+                    return {};
+                }}
+            }
+            expect(true).to.equal(true);
+        })
+    });
 });
